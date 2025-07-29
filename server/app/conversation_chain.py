@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
+from langchain import hub
 
 def init_conversation_chain(app: FastAPI):
     if app.state.vector_store:
@@ -24,12 +25,14 @@ def init_conversation_chain(app: FastAPI):
             MessagesPlaceholder("chat_history"),
             ("human", "{input}")
         ])
+
+        # prompt = hub.pull("rlm/rag-prompt")
         
         # Create the chains
-        question_answer_chain = create_stuff_documents_chain(llm, prompt)
+        app.state.question_answer_chain = create_stuff_documents_chain(llm, prompt)
         app.state.retrieval_chain = create_retrieval_chain(
             app.state.vector_store.as_retriever(search_kwargs={"k": 3}),
-            question_answer_chain
+            app.state.question_answer_chain
         )
 
 def close_conversation_chain(app: FastAPI):
