@@ -2,11 +2,16 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 
 from langchain_core.messages import HumanMessage, AIMessage
 from models import ChatRequest, ChatResponse
+from langchain.prompts import ChatPromptTemplate
+from utils import rag_methods
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 @router.post("/send", response_model=ChatResponse)
 async def chat(chat_request: ChatRequest, request: Request):
+
+    if chat_request.technique == "query-translation-(multi-query)":
+        return await rag_methods.run_query_translation_multi_query(chat_request, request)
     
     retrieval_chain = request.app.state.retrieval_chain
     

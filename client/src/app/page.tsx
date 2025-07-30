@@ -3,8 +3,16 @@
 import { useState } from "react";
 //
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: string[];
+  technique?: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"upload" | "chat">("upload");
+  const [messages, setMessages] = useState<Message[]>([]);
 
   return (
     <div className="min-h-screen p-8">
@@ -37,7 +45,7 @@ export default function Home() {
         </div>
 
         <div className="mt-8">
-          {activeTab === "upload" ? <UploadTab /> : <ChatTab />}
+          {activeTab === "upload" ? <UploadTab /> : <ChatTab messages={messages} setMessages={setMessages} />}
         </div>
       </main>
     </div>
@@ -191,15 +199,13 @@ function UploadTab() {
   );
 }
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: string[];
+interface ChatTabProps {
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
-function ChatTab() {
+function ChatTab({ messages, setMessages }: ChatTabProps) {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,7 +222,7 @@ function ChatTab() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ message: userMessage }),
+          body: JSON.stringify({ message: userMessage, technique: selectedOption }),
         });
 
         if (response.ok) {
@@ -244,8 +250,47 @@ function ChatTab() {
     }
   };
 
+  const [selectedOption, setSelectedOption] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedOption(e.target.value);
+  };
+
   return (
     <div className="flex flex-col h-[600px]">
+
+      <div className="flex">
+      <form className="bg-white p-4 rounded-lg shadow mb-4">
+        <h2 className="text-xl font-bold text-gray-800">Query Translation</h2>
+
+        {[
+          "Query Translation (Multi-Query)",
+          "Query Translation (RAG Fusion)",
+          "Query Translation (Decomposition)",
+          "Query Translation (Step Back)",
+          "Query Translation (HyDE)",
+        ].map((label) => {
+          const value = label.toLowerCase().replace(/\s+/g, "-");
+          return (
+            <label
+              key={value}
+              className="flex items-center space-x-3 cursor-pointer"
+            >
+              <input
+                type="radio"
+                name="queryTranslation"
+                value={value}
+                checked={selectedOption === value}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="text-gray-700">{label}</span>
+            </label>
+          );
+        })}
+      </form>
+    </div>
+
       <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-4 overflow-y-auto">
         {messages.length === 0 ? (
           <p className="text-gray-500 text-center mt-8">

@@ -120,6 +120,29 @@ async def upload_multiple_files(request: Request, files: List[UploadFile] = File
         content={"uploaded_files": uploaded_files}
     )
 
+@router.delete("/clear-vector-store")
+async def clear_vector_store(request: Request):
+    try:
+        vector_store = request.app.state.vector_store
+        if vector_store:
+            # Get all document IDs and delete them
+            collection = vector_store._collection
+            all_docs = collection.get()
+            if all_docs['ids']:
+                collection.delete(ids=all_docs['ids'])
+            
+            return JSONResponse(
+                status_code=200,
+                content={"message": "Vector store cleared successfully", "documents_deleted": len(all_docs['ids'])}
+            )
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"message": "Vector store not initialized"}
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing vector store: {str(e)}")
+
 @router.get("/")
 async def list_files():
     files = []
