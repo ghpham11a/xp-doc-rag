@@ -3,7 +3,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from langchain_core.messages import HumanMessage, AIMessage
 from models import ChatRequest, ChatResponse
 from langchain.prompts import ChatPromptTemplate
-from utils import rag_methods
+from utils import query_translation
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -11,7 +11,19 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 async def chat(chat_request: ChatRequest, request: Request):
 
     if chat_request.technique == "query-translation-(multi-query)":
-        return await rag_methods.run_query_translation_multi_query(chat_request, request)
+        return await query_translation.run_query_translation_multi_query(chat_request, request)
+    
+    if chat_request.technique == "query-translation-(rag-fusion)":
+        return await query_translation.run_query_translation_rag_fusion(chat_request, request)
+
+    if chat_request.technique == "query-translation-(decomposition)":
+        return await query_translation.run_query_translation_decomposition(chat_request, request)
+    
+    if chat_request.technique == "query-translation-(step-back)":
+        return await query_translation.run_query_translation_step_back(chat_request, request)
+    
+    if chat_request.technique == "query-translation-(hyde)":
+        return await query_translation.run_query_translation_hyde(chat_request, request)
     
     retrieval_chain = request.app.state.retrieval_chain
     

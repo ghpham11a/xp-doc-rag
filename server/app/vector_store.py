@@ -8,11 +8,23 @@ def init_vector_store(app: FastAPI):
     
     if app.state.vector_store is None and app.state.VECTOR_STORE_DIR.exists():
         try:
-            app.state.vector_store = Chroma(
-                persist_directory=str(app.state.VECTOR_STORE_DIR),
-                embedding_function=app.state.embeddings,
-                collection_name="documents"
-            )
+            app.state.vector_store = {
+                "dz1": Chroma(
+                    persist_directory=str(app.state.VECTOR_STORE_DIR),
+                    embedding_function=app.state.embeddings,
+                    collection_name="dz1"
+                ),
+                "dz2": Chroma(
+                    persist_directory=str(app.state.VECTOR_STORE_DIR),
+                    embedding_function=app.state.embeddings,
+                    collection_name="dz2"
+                ),
+                "dz3": Chroma(
+                    persist_directory=str(app.state.VECTOR_STORE_DIR),
+                    embedding_function=app.state.embeddings,
+                    collection_name="dz3"
+                ),
+            }
         except Exception as e:
             print(f"Error loading vector store: {e}")
 

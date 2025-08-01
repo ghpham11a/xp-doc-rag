@@ -38,7 +38,7 @@ def process_document(file_path: Path, file_type: str):
 @router.post("/upload")
 async def upload_file(request: Request, file: UploadFile = File(...)):
 
-    vector_store = request.app.state.vector_store
+    vector_store = request.app.state.vector_store["dz1"]
     
     try:
         file_extension = os.path.splitext(file.filename)[1].lower()

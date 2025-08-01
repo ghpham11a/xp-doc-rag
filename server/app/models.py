@@ -1,5 +1,7 @@
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel
+
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 class ChatRequest(BaseModel):
     message: str
