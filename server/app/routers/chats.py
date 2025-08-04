@@ -102,7 +102,6 @@ async def chat(chat_request: ChatRequest, request: Request):
                 rag_chain = await routing.run_routing_logical(chat_request, request, {"subject_one": sub_one_multi_chain, "subject_two": sub_two_multi_chain})
             else:
                 rag_chain = await routing.run_routing_logical(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
-                print("fuck")
         else:
             query_translation_options = await handle_query_translation(path[0], chat_request, request)
             rag_chain = build_chain(query_translation_options, query_construction_options)
