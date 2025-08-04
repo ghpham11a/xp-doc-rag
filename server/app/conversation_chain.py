@@ -31,7 +31,7 @@ def init_conversation_chain(app: FastAPI):
         # Create the chains
         app.state.question_answer_chain = create_stuff_documents_chain(llm, prompt)
         app.state.retrieval_chain = create_retrieval_chain(
-            app.state.vector_store["dz1"].as_retriever(search_kwargs={"k": 3}),
+            app.state.vector_store["subject_one"].as_retriever(search_kwargs={"k": 3}),
             app.state.question_answer_chain
         )
 

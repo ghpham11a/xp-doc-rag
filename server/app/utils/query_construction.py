@@ -6,7 +6,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from models import ChatRequest, ChatResponse
+from models import ChatRequest, ChatResponse, QueryConstructionResponse
 
 class StructuredSearch(BaseModel):
     """Search over a database of tutorial videos about a software library."""
@@ -76,3 +76,5 @@ async def run_query_construction(chat_request: ChatRequest, request: Request):
     query_analyzer.invoke(
         {"question": "videos on chat langchain published in 2023"}
     ).pretty_print()
+
+    return QueryConstructionResponse(llm=structured_llm)

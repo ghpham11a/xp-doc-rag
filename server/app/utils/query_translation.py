@@ -1,4 +1,5 @@
 from operator import itemgetter
+from typing import Any
 from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 
 from langchain_core.messages import HumanMessage, AIMessage
@@ -7,13 +8,16 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain.load import dumps, loads
+from langchain_core.vectorstores import VectorStoreRetriever
+from langchain_core.vectorstores.base import VectorStore
 
-from models import ChatRequest, ChatResponse
+
+from models import ChatRequest, ChatResponse, QueryTranslationResponse
 
 # Multi Query: Different Perspectives
-async def run_query_translation_multi_query(chat_request: ChatRequest, request: Request):
+async def run_query_translation_multi_query(chat_request: ChatRequest, request: Request, vector_store: VectorStore) -> QueryTranslationResponse:
 
-    retriever = request.app.state.vector_store.as_retriever()
+    retriever = vector_store.as_retriever()
 
     template = """You are an AI language model assistant. Your task is to generate five 
     different versions of the given user question to retrieve relevant documents from a vector 
@@ -39,44 +43,28 @@ async def run_query_translation_multi_query(chat_request: ChatRequest, request: 
         return [loads(doc) for doc in unique_docs]
 
     # Retrieve
-    question = chat_request.message
     retrieval_chain = generate_queries | retriever.map() | get_unique_union
-    docs = retrieval_chain.invoke({"question":question})
-    
-    from operator import itemgetter
-    from langchain_core.runnables import RunnablePassthrough
 
     # RAG
-    template = """Answer the following question based on this context:
+    system_prompt = """Answer the following question based on this context:
 
     {context}
 
     Question: {question}
     """
 
-    prompt = ChatPromptTemplate.from_template(template)
+    chain_params = {
+        "context": retrieval_chain, 
+        "question": itemgetter("question")
+    }
 
-    llm = ChatOpenAI(temperature=0)
+    return QueryTranslationResponse(chain_params=chain_params, system_prompt=system_prompt)
 
-    final_rag_chain = (
-        {"context": retrieval_chain, 
-        "question": itemgetter("question")} 
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    response = final_rag_chain.invoke({"question":question})
-
-    return ChatResponse(
-        answer=response,
-        sources=[]
-    )
 
 # RAG-Fusion: Related
-async def run_query_translation_rag_fusion(chat_request: ChatRequest, request: Request):
+async def run_query_translation_rag_fusion(chat_request: ChatRequest, request: Request, vector_store: VectorStore):
 
-    retriever = request.app.state.vector_store.as_retriever()
+    retriever = vector_store.as_retriever()
 
     template = """You are a helpful assistant that generates multiple search queries based on a single input query. \n
     Generate multiple search queries related to: {question} \n
@@ -125,40 +113,26 @@ async def run_query_translation_rag_fusion(chat_request: ChatRequest, request: R
     retrieval_chain_rag_fusion = generate_queries | retriever.map() | reciprocal_rank_fusion
     docs = retrieval_chain_rag_fusion.invoke({"question": question})
     len(docs)
-    
-    from langchain_core.runnables import RunnablePassthrough
 
     # RAG
-    template = """Answer the following question based on this context:
+    system_prompt = """Answer the following question based on this context:
 
     {context}
 
     Question: {question}
     """
 
-    prompt = ChatPromptTemplate.from_template(template)
+    chain_params = {
+        "context": retrieval_chain_rag_fusion, 
+        "question": itemgetter("question")
+    }
 
-    llm = ChatOpenAI(temperature=0)
-
-    final_rag_chain = (
-        {"context": retrieval_chain_rag_fusion, 
-        "question": itemgetter("question")} 
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    response = final_rag_chain.invoke({"question": question})
-
-    return ChatResponse(
-        answer=response,
-        sources=[]
-    )
+    return QueryTranslationResponse(chain_params=chain_params, system_prompt=system_prompt)
 
 # Decomposition
-async def run_query_translation_decomposition(chat_request: ChatRequest, request: Request):
+async def run_query_translation_decomposition(chat_request: ChatRequest, request: Request, vector_store: VectorStore):
 
-    retriever = request.app.state.vector_store.as_retriever()
+    retriever = vector_store.as_retriever()
 
     template = """You are a helpful assistant that generates multiple sub-questions related to an input question. \n
     The goal is to break down the input into a set of sub-problems / sub-questions that can be answers in isolation. \n
@@ -174,6 +148,7 @@ async def run_query_translation_decomposition(chat_request: ChatRequest, request
 
     # Run
     question = "What are the main components of an LLM-powered autonomous agent system?"
+    question = chat_request.message
     questions = generate_queries_decomposition.invoke({"question":question})
 
     print(questions)
@@ -222,13 +197,15 @@ async def run_query_translation_decomposition(chat_request: ChatRequest, request
         q_a_pair = format_qa_pair(q,answer)
         q_a_pairs = q_a_pairs + "\n---\n"+  q_a_pair
 
+    print("answer", answer)
+
     return ChatResponse(
         answer=answer,
         sources=[]
     )
 
 # Step back
-async def run_query_translation_step_back(chat_request: ChatRequest, request: Request):
+async def run_query_translation_step_back(chat_request: ChatRequest, request: Request, vector_store: VectorStore):
 
     from langchain_core.prompts import FewShotChatMessagePromptTemplate
 
@@ -272,38 +249,27 @@ async def run_query_translation_step_back(chat_request: ChatRequest, request: Re
     question = chat_request.message
     generate_queries_step_back.invoke({"question": question})
 
-    response_prompt_template = """You are an expert of world knowledge. I am going to ask you a question. Your response should be comprehensive and not contradicted with the following context if they are relevant. Otherwise, ignore them if they are not relevant.
+    system_prompt = """You are an expert of world knowledge. I am going to ask you a question. Your response should be comprehensive and not contradicted with the following context if they are relevant. Otherwise, ignore them if they are not relevant.
 
     # {normal_context}
     # {step_back_context}
 
     # Original Question: {question}
     # Answer:"""
-    response_prompt = ChatPromptTemplate.from_template(response_prompt_template)
 
-    chain = (
-        {
-            # Retrieve context using the normal question
-            "normal_context": RunnableLambda(lambda x: x["question"]) | retriever,
-            # Retrieve context using the step-back question
-            "step_back_context": generate_queries_step_back | retriever,
-            # Pass on the question
-            "question": lambda x: x["question"],
-        }
-        | response_prompt
-        | ChatOpenAI(temperature=0)
-        | StrOutputParser()
-    )
+    chain_params = {
+        # Retrieve context using the normal question
+        "normal_context": RunnableLambda(lambda x: x["question"]) | retriever,
+        # Retrieve context using the step-back question
+        "step_back_context": generate_queries_step_back | retriever,
+        # Pass on the question
+        "question": lambda x: x["question"],
+    }
 
-    answer = chain.invoke({"question": question})
-
-    return ChatResponse(
-        answer=answer,
-        sources=[]
-    )
+    return QueryTranslationResponse(chain_params=chain_params, system_prompt=system_prompt)
 
 # HyDE
-async def run_query_translation_hyde(chat_request: ChatRequest, request: Request):
+async def run_query_translation_hyde(chat_request: ChatRequest, request: Request, vector_store: VectorStore):
 
     retriever = request.app.state.vector_store.as_retriever()
 

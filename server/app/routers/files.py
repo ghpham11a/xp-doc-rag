@@ -1,7 +1,7 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Path, Request
+from fastapi import APIRouter, File, UploadFile, HTTPException, Path, Request, Form
 from fastapi.responses import JSONResponse
 
-from typing import List
+from typing import List, Optional
 import os
 import shutil
 import uuid
@@ -9,6 +9,8 @@ import uuid
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
+
+from utils import idx_multi_representation, idx_raptor
 
 import state
 
@@ -35,10 +37,11 @@ def process_document(file_path: Path, file_type: str):
     splits = text_splitter.split_documents(documents)
     return splits
 
-@router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
-
-    vector_store = request.app.state.vector_store["dz1"]
+async def run_default_vector_add_document(request: Request, 
+                                      file: UploadFile = File(...), 
+                                      zone: Optional[str] = Form(None)):
+    
+    vector_store = request.app.state.vector_stores[zone]
     
     try:
         file_extension = os.path.splitext(file.filename)[1].lower()
@@ -72,6 +75,25 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         file.file.close()
+
+@router.post("/upload")
+async def upload_file(
+    request: Request, 
+    file: UploadFile = File(...),
+    zone: Optional[str] = Form(None),
+    path: Optional[str] = Form(None)
+):
+
+    if path == "multi-representation":
+        return await idx_multi_representation.run_indexing_multi_representation(request, file, zone)
+
+    if path == "raptor":
+        return await idx_raptor.run_indexing_raptor(request, file, zone)
+
+    if path == "colbert":
+        pass
+
+    return await run_default_vector_add_document(request, file, zone) 
 
 @router.post("/upload-multiple")
 async def upload_multiple_files(request: Request, files: List[UploadFile] = File(...)):
@@ -123,23 +145,27 @@ async def upload_multiple_files(request: Request, files: List[UploadFile] = File
 @router.delete("/clear-vector-store")
 async def clear_vector_store(request: Request):
     try:
-        vector_store = request.app.state.vector_store
-        if vector_store:
-            # Get all document IDs and delete them
-            collection = vector_store._collection
-            all_docs = collection.get()
-            if all_docs['ids']:
-                collection.delete(ids=all_docs['ids'])
-            
-            return JSONResponse(
-                status_code=200,
-                content={"message": "Vector store cleared successfully", "documents_deleted": len(all_docs['ids'])}
-            )
-        else:
-            return JSONResponse(
-                status_code=404,
-                content={"message": "Vector store not initialized"}
-            )
+        for vs in ["subject_one", "subject_two"]:
+            vector_store = request.app.state.vector_stores[vs]
+            if vector_store:
+                # Get all document IDs and delete them
+                collection = vector_store._collection
+                all_docs = collection.get()
+                if all_docs['ids']:
+                    collection.delete(ids=all_docs['ids'])
+
+            multi_vector_store = request.app.state.multi_vector_stores[vs]
+            if multi_vector_store:
+                # Get all document IDs and delete them
+                collection = multi_vector_store._collection
+                all_docs = collection.get()
+                if all_docs['ids']:
+                    collection.delete(ids=all_docs['ids'])
+
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Vector store cleared successfully", "documents_deleted": len(all_docs['ids'])}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error clearing vector store: {str(e)}")
 
