@@ -1,14 +1,11 @@
 from operator import itemgetter
-from typing import Any
-from fastapi import APIRouter, File, UploadFile, HTTPException, Request
+from fastapi import Request
 
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.runnables import RunnableLambda
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain.load import dumps, loads
-from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.vectorstores.base import VectorStore
 
 
@@ -196,8 +193,6 @@ async def run_query_translation_decomposition(chat_request: ChatRequest, request
         answer = rag_chain.invoke({"question":q,"q_a_pairs":q_a_pairs})
         q_a_pair = format_qa_pair(q,answer)
         q_a_pairs = q_a_pairs + "\n---\n"+  q_a_pair
-
-    print("answer", answer)
 
     return ChatResponse(
         answer=answer,

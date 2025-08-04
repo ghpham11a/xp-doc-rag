@@ -1,7 +1,6 @@
 import uuid
 import os
 import shutil
-from pathlib import Path
 
 from fastapi import Request, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
@@ -15,7 +14,7 @@ from langchain.storage import InMemoryByteStore
 
 from langchain.retrievers.multi_vector import MultiVectorRetriever
 
-async def run_indexing_multi_representation(request: Request, file: UploadFile = File(...), zone: str = ""):
+async def run(request: Request, file: UploadFile = File(...), zone: str = ""):
 
     try:
         # Save uploaded file temporarily

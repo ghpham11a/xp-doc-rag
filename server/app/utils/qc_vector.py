@@ -1,12 +1,12 @@
 import datetime
-from typing import Literal, Optional, Tuple
+from typing import Optional
 from fastapi import Request
 from langchain_core.pydantic_v1 import BaseModel, Field
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from models import ChatRequest, ChatResponse, QueryConstructionResponse
+from models import ChatRequest, QueryConstructionResponse
 
 class StructuredSearch(BaseModel):
     """Search over a database of tutorial videos about a software library."""
@@ -56,7 +56,7 @@ class StructuredSearch(BaseModel):
                 print(f"{field}: {getattr(self, field)}")
 
 # Multi Query: Different Perspectives
-async def run_query_construction(chat_request: ChatRequest, request: Request):
+async def run(chat_request: ChatRequest, request: Request):
 
     system = """You are an expert at converting user questions into database queries. \
     You have access to a database of tutorial videos about a software library for building LLM-powered applications. \

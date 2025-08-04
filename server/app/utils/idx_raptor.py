@@ -2,7 +2,6 @@ import uuid
 from typing import Dict, List, Optional, Tuple
 from fastapi import Request, UploadFile, File, HTTPException
 import shutil
-from fastapi.responses import JSONResponse
 
 import numpy as np
 import pandas as pd
@@ -346,7 +345,7 @@ def recursive_embed_cluster_summarize(
 
     return results
 
-async def run_indexing_raptor(request: Request, file: UploadFile = File(...), zone: str = ""):
+async def run(request: Request, file: UploadFile = File(...), zone: str = ""):
     try:
         # Save uploaded file temporarily
         file_extension = os.path.splitext(file.filename)[1].lower()

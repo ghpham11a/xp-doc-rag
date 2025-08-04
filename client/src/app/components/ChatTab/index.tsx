@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Message, ChatResponse, QueryTranslationType, RoutingType, QueryConstructionType, IndexTechnique } from "../../types";
 import { API_ENDPOINTS } from "../../constants/api";
 import RadioGroup from "../common/RadioGroup";
@@ -17,6 +17,22 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   const [selectedRoutingType, setSelectedRoutingType] = useState<RoutingType>("none");
   const [selectedQueryConstruction, setSelectedQueryConstruction] = useState<QueryConstructionType>("none");
   const [selectedIndexing, setSelectedIndexing] = useState<IndexTechnique>("default");
+
+  // Reset selections when they become disabled
+  useEffect(() => {
+    if (selectedQueryTranslation === "decomposition") {
+      // Reset routing and query construction when decomposition is selected
+      setSelectedRoutingType("none");
+      setSelectedQueryConstruction("none");
+    }
+  }, [selectedQueryTranslation]);
+
+  useEffect(() => {
+    if (selectedRoutingType !== "logical" && selectedIndexing === "multi-representation") {
+      // Reset indexing to default if multi-representation becomes disabled
+      setSelectedIndexing("default");
+    }
+  }, [selectedRoutingType, selectedIndexing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +85,10 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   };
 
 
+  // Conditional disabling logic
+  const isDecompositionSelected = selectedQueryTranslation === "decomposition";
+  const isLogicalRoutingSelected = selectedRoutingType === "logical";
+
   const queryTranslationOptions = [
     // Query Translation
     { label: "None", value: "none" as QueryTranslationType },
@@ -80,21 +100,22 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   ];
 
   const routingOptions = [
-    { label: "None", value: "none" as RoutingType },
-    { label: "Logical", value: "logical" as RoutingType },
-    { label: "Semantic", value: "semantic" as RoutingType },
+    { label: "None", value: "none" as RoutingType, disabled: isDecompositionSelected },
+    { label: "Logical", value: "logical" as RoutingType, disabled: isDecompositionSelected },
+    { label: "Semantic", value: "semantic" as RoutingType, disabled: true },
   ];
 
   const queryConstructionOptions = [
-    { label: "None", value: "none" as QueryConstructionType },
-    { label: "Vector", value: "vector" as QueryConstructionType }
+    { label: "None", value: "none" as QueryConstructionType, disabled: isDecompositionSelected },
+    { label: "Vector", value: "vector" as QueryConstructionType, disabled: isDecompositionSelected },
+    { label: "SQL", value: "sql" as QueryConstructionType, disabled: true }
   ]
 
   const indexingOptions = [
     { label: "Default", value: "default" as IndexTechnique },
-    { label: "Multi-Representation", value: "multi-representation" as IndexTechnique },
-    { label: "RAPTOR", value: "raptor" as IndexTechnique },
-    { label: "ColBERT", value: "colbert" as IndexTechnique }
+    { label: "Multi-Representation", value: "multi-representation" as IndexTechnique, disabled: !isLogicalRoutingSelected },
+    { label: "RAPTOR", value: "raptor" as IndexTechnique, disabled: true }, // Always disabled for now
+    { label: "ColBERT", value: "colbert" as IndexTechnique, disabled: true } // Always disabled for now
   ];
 
   return (

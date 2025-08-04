@@ -4,7 +4,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from langchain_core.messages import HumanMessage, AIMessage
 from models import ChatRequest, ChatResponse, QueryConstructionResponse
 from langchain.prompts import ChatPromptTemplate
-from utils import query_translation, routing, query_construction, idx_multi_representation, idx_raptor
+from utils import query_translation, rt_logical, rt_semantic, qc_vector, qt_multi_query, qt_rag_fusion, qt_step_back, qt_hyde
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
@@ -17,35 +17,26 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 async def handle_query_translation(path: str, chat_request: ChatRequest, request: Request, vector_store: VectorStore):
 
     if path == "multi-query":
-        return await query_translation.run_query_translation_multi_query(chat_request, request, vector_store)
+        return await qt_multi_query.run(chat_request, request, vector_store)
     
     if path == "rag-fusion":
-        return await query_translation.run_query_translation_rag_fusion(chat_request, request, vector_store)
+        return await qt_rag_fusion.run(chat_request, request, vector_store)
 
-    if path == "decomposition":
-        return await query_translation.run_query_translation_decomposition(chat_request, request, vector_store)
+    # decomposition is handled on its own
     
     if path == "step-back":
-        return await query_translation.run_query_translation_step_back(chat_request, request, vector_store)
+        return await qt_step_back.run(chat_request, request, vector_store)
     
     if path == "hyde":
-        return await query_translation.run_query_translation_hyde(chat_request, request, vector_store)
+        return await qt_hyde.run(chat_request, request, vector_store)
     
     return await run_default_question_answer(chat_request, request)
-
-async def handle_routing(path: str, chat_request: ChatRequest, request: Request, query_translation_options: Any):
-
-    if path == "logical":
-        return await routing.run_routing_logical(chat_request, request, query_translation_options)
-    
-    if path == "semantic":
-        return await routing.run_routing_semantic(chat_request, request)
     
 # should return the LLM instance
 async def handle_query_construction(path: str, chat_request: ChatRequest, request: Request):
 
     if path == "vector":
-        return await query_construction.run_query_construction(chat_request, request)
+        return await qc_vector.run(chat_request, request)
 
     return QueryConstructionResponse(llm=ChatOpenAI(temperature=0))
 
@@ -56,6 +47,7 @@ def build_chain(query_translation_options, query_construction_options):
         return {
             "context": x["context"],
             "input": x["question"],
+            "question": x["question"],
             "chat_history": x.get("chat_history", [])
         }
     
@@ -87,6 +79,9 @@ async def chat(chat_request: ChatRequest, request: Request):
         # construction of LLM vs structured LLM does not have any dependencies
         query_construction_options = await handle_query_construction(path[2], chat_request, request)
 
+        if path[0] == "decomposition":
+            return await query_translation.run_query_translation_decomposition(chat_request, request, query_construction_options)
+
         if path[1] == "logical":
             sub_one_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_one"])
             sub_two_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_two"])
@@ -99,33 +94,25 @@ async def chat(chat_request: ChatRequest, request: Request):
             sub_two_multi_chain = build_chain(sub_two_options_multi, query_construction_options)
 
             if path[3] == "multi-representation":
-                rag_chain = await routing.run_routing_logical(chat_request, request, {"subject_one": sub_one_multi_chain, "subject_two": sub_two_multi_chain})
+                rag_chain = await rt_semantic.run_routing_logical(chat_request, request, {"subject_one": sub_one_multi_chain, "subject_two": sub_two_multi_chain})
             else:
-                rag_chain = await routing.run_routing_logical(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
+                rag_chain = await rt_semantic.run_routing_logical(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
         else:
-            query_translation_options = await handle_query_translation(path[0], chat_request, request)
+            query_translation_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_one"])
             rag_chain = build_chain(query_translation_options, query_construction_options)
-
-        if path[1] == "decomposition":
-            return await query_translation.run_query_translation_decomposition(chat_request, request)
 
         response = rag_chain.invoke({
             "question": chat_request.message
         })
 
-        print("test", response)
+        response = {"answer": response, "sources": []}
 
-        # request.app.state.chat_history.append(HumanMessage(content=chat_request.message))
-        # request.app.state.chat_history.append(AIMessage(content=response['answer']))
+        request.app.state.chat_history.append(HumanMessage(content=chat_request.message))
+        request.app.state.chat_history.append(AIMessage(content=response['answer']))
         
-        # # Keep only last 10 messages to prevent context overflow
-        # if len(request.app.state.chat_history) > 20:
-        #     request.app.state.chat_history = request.app.state.chat_history[-20:]
-        
-        # print(f"Answer: {response["answer"]}")
-        # print(f"Sources: {response["sources"]}")
-
-        response = {"answer": "", "sources": []}
+        # Keep only last 10 messages to prevent context overflow
+        if len(request.app.state.chat_history) > 20:
+            request.app.state.chat_history = request.app.state.chat_history[-20:]
 
         return ChatResponse(
             answer=response["answer"],

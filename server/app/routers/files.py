@@ -27,6 +27,8 @@ def process_document(file_path: Path, file_type: str):
         raise ValueError(f"Unsupported file type: {file_type}")
     
     documents = loader.load()
+
+    # documents = zone_identifier + documents
     
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -40,7 +42,7 @@ def process_document(file_path: Path, file_type: str):
 async def run_default_vector_add_document(request: Request, 
                                       file: UploadFile = File(...), 
                                       zone: Optional[str] = Form(None)):
-    
+
     vector_store = request.app.state.vector_stores[zone]
     
     try:
@@ -57,8 +59,6 @@ async def run_default_vector_add_document(request: Request,
         documents = process_document(file_path, file_extension)
         
         vector_store.add_documents(documents)
-
-        print("after add documents " + str(vector_store._collection.count()))
         
         return JSONResponse(
             status_code=200,
