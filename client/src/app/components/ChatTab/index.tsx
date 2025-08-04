@@ -113,9 +113,9 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
 
   const indexingOptions = [
     { label: "Default", value: "default" as IndexTechnique },
-    { label: "Multi-Representation", value: "multi-representation" as IndexTechnique, disabled: !isLogicalRoutingSelected },
-    { label: "RAPTOR", value: "raptor" as IndexTechnique, disabled: true }, // Always disabled for now
-    { label: "ColBERT", value: "colbert" as IndexTechnique, disabled: true } // Always disabled for now
+    { label: "Multi-Representation", value: "multi-representation" as IndexTechnique },
+    { label: "RAPTOR", value: "raptor" as IndexTechnique }, // Always disabled for now
+    { label: "ColBERT", value: "colbert" as IndexTechnique } // Always disabled for now
   ];
 
   return (

@@ -35,6 +35,18 @@ def init_vector_store(app: FastAPI):
                 embedding_function=OpenAIEmbeddings()
             ),
         }
+        app.state.raptor_vector_stores = {
+            "subject_one": Chroma(
+                persist_directory=str(app.state.SUBJECT_ONE_RAPTOR_VECTOR_DIR),
+                collection_name="subject_one_raptor_vector", 
+                embedding_function=OpenAIEmbeddings()
+            ),
+            "subject_two": Chroma(
+                persist_directory=str(app.state.SUBJECT_TWO_RAPTOR_VECTOR_DIR),
+                collection_name="subject_two_raptor_vector", 
+                embedding_function=OpenAIEmbeddings()
+            ),
+        }
     except Exception as e:
         print(f"Error loading vector store: {e}")
 

@@ -25,10 +25,16 @@ async def lifespan(app: FastAPI):
     app.state.SUBJECT_ONE_VECTOR_DIR.mkdir(exist_ok=True)
     app.state.SUBJECT_TWO_VECTOR_DIR = Path("chroma_db/subject_two_db")
     app.state.SUBJECT_TWO_VECTOR_DIR.mkdir(exist_ok=True)
+
     app.state.SUBJECT_ONE_MULTI_VECTOR_DIR = Path("chroma_db/subject_one_multi_db")
     app.state.SUBJECT_ONE_MULTI_VECTOR_DIR.mkdir(exist_ok=True)
     app.state.SUBJECT_TWO_MULTI_VECTOR_DIR = Path("chroma_db/subject_two_multi_db")
     app.state.SUBJECT_TWO_MULTI_VECTOR_DIR.mkdir(exist_ok=True)
+
+    app.state.SUBJECT_ONE_RAPTOR_VECTOR_DIR = Path("chroma_db/subject_one_raptor_db")
+    app.state.SUBJECT_ONE_RAPTOR_VECTOR_DIR.mkdir(exist_ok=True)
+    app.state.SUBJECT_TWO_RAPTOR_VECTOR_DIR = Path("chroma_db/subject_two_raptor_db")
+    app.state.SUBJECT_TWO_RAPTOR_VECTOR_DIR.mkdir(exist_ok=True)
 
     # Embeddings
     app.state.embeddings = OpenAIEmbeddings()

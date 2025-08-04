@@ -85,10 +85,10 @@ async def upload_file(
 ):
 
     if path == "multi-representation":
-        return await idx_multi_representation.run_indexing_multi_representation(request, file, zone)
+        return await idx_multi_representation.run(request, file, zone)
 
     if path == "raptor":
-        return await idx_raptor.run_indexing_raptor(request, file, zone)
+        return await idx_raptor.run(request, file, zone)
 
     if path == "colbert":
         pass

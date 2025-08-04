@@ -1,4 +1,5 @@
 import uuid
+import os
 from typing import Dict, List, Optional, Tuple
 from fastapi import Request, UploadFile, File, HTTPException
 import shutil
@@ -8,8 +9,11 @@ import pandas as pd
 import umap
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.documents import Document
 from sklearn.mixture import GaussianMixture
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 
 RANDOM_SEED = 224  # Fixed seed for reproducibility
 
@@ -75,13 +79,36 @@ def get_optimal_clusters(
     Returns:
     - An integer representing the optimal number of clusters found.
     """
+    # Convert to float64 for better numerical stability
+    embeddings = embeddings.astype(np.float64)
+    
+    # Ensure we don't try more clusters than samples
     max_clusters = min(max_clusters, len(embeddings))
+    # Minimum 2 samples per cluster as a rough guideline
+    max_clusters = min(max_clusters, len(embeddings) // 2)
+    
     n_clusters = np.arange(1, max_clusters)
     bics = []
+    
     for n in n_clusters:
-        gm = GaussianMixture(n_components=n, random_state=random_state)
-        gm.fit(embeddings)
-        bics.append(gm.bic(embeddings))
+        try:
+            # Add regularization to prevent singular covariance matrices
+            gm = GaussianMixture(
+                n_components=n, 
+                random_state=random_state,
+                reg_covar=1e-6  # Small regularization value
+            )
+            gm.fit(embeddings)
+            bics.append(gm.bic(embeddings))
+        except Exception as e:
+            # If fitting fails, use a large BIC value to skip this number of clusters
+            print(f"Warning: GMM fitting failed for {n} clusters: {str(e)}")
+            bics.append(np.inf)
+    
+    # If all attempts failed, return 1 cluster
+    if all(np.isinf(bic) for bic in bics):
+        return 1
+        
     return n_clusters[np.argmin(bics)]
 
 
@@ -97,12 +124,26 @@ def GMM_cluster(embeddings: np.ndarray, threshold: float, random_state: int = 0)
     Returns:
     - A tuple containing the cluster labels and the number of clusters determined.
     """
+    # Convert to float64 for better numerical stability
+    embeddings = embeddings.astype(np.float64)
+    
     n_clusters = get_optimal_clusters(embeddings)
-    gm = GaussianMixture(n_components=n_clusters, random_state=random_state)
-    gm.fit(embeddings)
-    probs = gm.predict_proba(embeddings)
-    labels = [np.where(prob > threshold)[0] for prob in probs]
-    return labels, n_clusters
+    
+    try:
+        gm = GaussianMixture(
+            n_components=n_clusters, 
+            random_state=random_state,
+            reg_covar=1e-6  # Small regularization value
+        )
+        gm.fit(embeddings)
+        probs = gm.predict_proba(embeddings)
+        labels = [np.where(prob > threshold)[0] for prob in probs]
+        return labels, n_clusters
+    except Exception as e:
+        print(f"Warning: GMM clustering failed, falling back to single cluster: {str(e)}")
+        # Fall back to single cluster if GMM fails
+        labels = [np.array([0]) for _ in range(len(embeddings))]
+        return labels, 1
 
 
 def perform_clustering(
@@ -122,7 +163,13 @@ def perform_clustering(
     Returns:
     - A list of numpy arrays, where each array contains the cluster IDs for each embedding.
     """
-    if len(embeddings) <= dim + 1:
+    # Convert to float64 for better numerical stability
+    embeddings = embeddings.astype(np.float64)
+    
+    # Need at least 3 samples for meaningful clustering
+    min_samples_for_clustering = max(dim + 1, 3)
+    
+    if len(embeddings) <= min_samples_for_clustering:
         # Avoid clustering when there's insufficient data
         return [np.array([0]) for _ in range(len(embeddings))]
 
@@ -192,8 +239,10 @@ def embed(texts):
     Returns:
     - numpy.ndarray: An array of embeddings for the given text documents.
     """
+    embd = OpenAIEmbeddings()
     text_embeddings = embd.embed_documents(texts)
-    text_embeddings_np = np.array(text_embeddings)
+    # Convert to float64 for better numerical stability
+    text_embeddings_np = np.array(text_embeddings, dtype=np.float64)
     return text_embeddings_np
 
 
@@ -274,6 +323,8 @@ def embed_cluster_summarize_texts(
     all_clusters = expanded_df["cluster"].unique()
 
     print(f"--Generated {len(all_clusters)} clusters--")
+
+    model = ChatOpenAI(temperature=0)
 
     # Summarization
     template = """Here is a sub-set of LangChain Expression Language doc. 
@@ -367,6 +418,23 @@ async def run(request: Request, file: UploadFile = File(...), zone: str = ""):
         
         documents = loader.load()
 
+        # Split the document into chunks for RAPTOR processing
+        # Using a simple text splitter - you may want to adjust chunk size
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+        )
+        
+        # Combine all pages and split into chunks
+        all_text = "\n".join([doc.page_content for doc in documents])
+        leaf_texts = text_splitter.split_text(all_text)
+        
+        # Ensure we have a list of texts, not a single string
+        if isinstance(leaf_texts, str):
+            leaf_texts = [leaf_texts]
+
         results = recursive_embed_cluster_summarize(leaf_texts, level=1, n_levels=3)
 
         # Initialize all_texts with leaf_texts
@@ -379,9 +447,24 @@ async def run(request: Request, file: UploadFile = File(...), zone: str = ""):
             # Extend all_texts with the summaries from the current level
             all_texts.extend(summaries)
 
-        # Now, use all_texts to build the vectorstore with Chroma
-        vectorstore = Chroma.from_texts(texts=all_texts, embedding=embd)
-        retriever = vectorstore.as_retriever()
+        # Convert text strings to Document objects
+        doc_objects = []
+        for i, text in enumerate(all_texts):
+            # Create metadata to indicate the source and level of the text
+            if i < len(leaf_texts):
+                metadata = {"source": file.filename, "type": "original", "chunk_id": i}
+            else:
+                # This is a summary from RAPTOR
+                metadata = {"source": file.filename, "type": "raptor_summary", "chunk_id": i}
+            
+            doc = Document(page_content=text, metadata=metadata)
+            doc_objects.append(doc)
+
+        request.app.state.raptor_vector_stores[zone].add_documents(doc_objects)
+
+        # # Now, use all_texts to build the vectorstore with Chroma
+        # vectorstore = Chroma.from_texts(texts=all_texts, embedding=embd)
+        # retriever = vectorstore.as_retriever()
         
     except Exception as e:
         print("error", str(e))

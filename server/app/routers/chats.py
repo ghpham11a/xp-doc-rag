@@ -87,16 +87,22 @@ async def chat(chat_request: ChatRequest, request: Request):
             sub_two_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_two"])
             sub_one_options_multi = await handle_query_translation(path[0], chat_request, request, request.app.state.multi_vector_stores["subject_one"])
             sub_two_options_multi = await handle_query_translation(path[0], chat_request, request, request.app.state.multi_vector_stores["subject_two"])
+            sub_one_options_raptor = await handle_query_translation(path[0], chat_request, request, request.app.state.raptor_vector_stores["subject_one"])
+            sub_two_options_raptor = await handle_query_translation(path[0], chat_request, request, request.app.state.raptor_vector_stores["subject_two"])
 
             sub_one_chain = build_chain(sub_one_options, query_construction_options)
             sub_two_chain = build_chain(sub_two_options, query_construction_options)
             sub_one_multi_chain = build_chain(sub_one_options_multi, query_construction_options)
             sub_two_multi_chain = build_chain(sub_two_options_multi, query_construction_options)
+            sub_one_raptor_chain = build_chain(sub_one_options_raptor, query_construction_options)
+            sub_two_raptor_chain = build_chain(sub_two_options_raptor, query_construction_options)
 
             if path[3] == "multi-representation":
-                rag_chain = await rt_semantic.run_routing_logical(chat_request, request, {"subject_one": sub_one_multi_chain, "subject_two": sub_two_multi_chain})
+                rag_chain = await rt_logical.run(chat_request, request, {"subject_one": sub_one_multi_chain, "subject_two": sub_two_multi_chain})
+            elif path[3] == "raptor":
+                rag_chain = await rt_logical.run(chat_request, request, {"subject_one": sub_one_raptor_chain, "subject_two": sub_two_raptor_chain})
             else:
-                rag_chain = await rt_semantic.run_routing_logical(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
+                rag_chain = await rt_logical.run(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
         else:
             query_translation_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_one"])
             rag_chain = build_chain(query_translation_options, query_construction_options)
