@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Message, ChatResponse, QueryTranslationType, RoutingType, QueryConstructionType, IndexTechnique } from "../../types";
+import { Message, ChatResponse, QueryTranslationType, RoutingType, QueryConstructionType, IndexTechnique, RetrievalType } from "../../types";
 import { API_ENDPOINTS } from "../../constants/api";
 import RadioGroup from "../common/RadioGroup";
 
@@ -17,6 +17,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   const [selectedRoutingType, setSelectedRoutingType] = useState<RoutingType>("none");
   const [selectedQueryConstruction, setSelectedQueryConstruction] = useState<QueryConstructionType>("none");
   const [selectedIndexing, setSelectedIndexing] = useState<IndexTechnique>("default");
+  const [selectedRetrieval, setSelectedRetrieval] = useState<RetrievalType>("none")
 
   // Reset selections when they become disabled
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
 
       console.log("Bullshit", JSON.stringify({ 
             message: userMessage, 
-            path: [selectedQueryTranslation, selectedRoutingType, selectedQueryConstruction, selectedIndexing]
+            path: [selectedQueryTranslation, selectedRoutingType, selectedQueryConstruction, selectedIndexing, selectedRetrieval]
           }))
 
       try {
@@ -55,7 +56,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
           },
           body: JSON.stringify({ 
             message: userMessage, 
-            path: [selectedQueryTranslation, selectedRoutingType, selectedQueryConstruction, selectedIndexing]
+            path: [selectedQueryTranslation, selectedRoutingType, selectedQueryConstruction, selectedIndexing, selectedRetrieval]
           }),
         });
 
@@ -118,6 +119,11 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
     { label: "ColBERT", value: "colbert" as IndexTechnique } // Always disabled for now
   ];
 
+  const retrievalOptions = [
+    { label: "None", value: "none" as RetrievalType, disabled: false },
+    { label: "CRAG", value: "crag" as RetrievalType, disabled: false },
+  ]
+
   return (
     <div className="flex flex-col h-[600px]">
       <div className="flex gap-4 mb-4">
@@ -148,6 +154,13 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
           options={indexingOptions}
           selectedValue={selectedIndexing}
           onChange={setSelectedIndexing}
+        />
+        <RadioGroup
+          title="Retrieval"
+          name="retrieval"
+          options={retrievalOptions}
+          selectedValue={selectedRetrieval}
+          onChange={setSelectedRetrieval}
         />
       </div>
 

@@ -31,4 +31,5 @@ export type DropZoneId = 'subject_one' | 'subject_two';
 export type QueryTranslationType = 'none' | 'multi-query' | 'rag-fusion' | 'decomposition' | 'step-back' | 'hyde' | 'logical' | 'semantic' | 'structured';
 export type RoutingType = 'none' | 'logical' | 'semantic';
 export type QueryConstructionType = 'none' | 'vector'
+export type RetrievalType = 'none' | 'CRAG'
 export type IndexTechnique = 'default' | 'multi-representation' | 'raptor' | 'colbert';
