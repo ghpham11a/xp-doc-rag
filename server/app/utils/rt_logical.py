@@ -40,31 +40,21 @@ async def run(chat_request: ChatRequest, request: Request, chains: Any):
     # Define router 
     router = prompt | structured_llm
 
-    def choose_route(result):
-        # Then select and invoke the appropriate chain
-        if "subject_one" in result.datasource.lower():
-            selected_chain = chains["subject_one"]
-        elif "subject_two" in result.datasource.lower():
-            selected_chain = chains["subject_two"]
-        else:
-            selected_chain = chains["subject_one"]
-        return selected_chain
-
     def route_and_invoke(inputs):
         # First, get the routing decision
         route_result = router.invoke({"question": inputs["question"]})
         
         # Then select and invoke the appropriate chain
         if "subject_one" in route_result.datasource.lower():
+            print("---INSPECTING SUBJECT ONE---")
             selected_chain = chains["subject_one"]
         elif "subject_two" in route_result.datasource.lower():
+            print("---INSPECTING SUBJECT TWO---")
             selected_chain = chains["subject_two"]
         else:
             selected_chain = chains["subject_one"]
         
         # Invoke the selected chain with the question
         return selected_chain.invoke({"question": inputs["question"]})
-
-    full_chain = router | RunnableLambda(choose_route)
 
     return RunnableLambda(route_and_invoke)

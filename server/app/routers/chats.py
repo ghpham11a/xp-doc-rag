@@ -4,7 +4,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from langchain_core.messages import HumanMessage, AIMessage
 from models import ChatRequest, ChatResponse, QueryConstructionResponse
 from langchain.prompts import ChatPromptTemplate
-from utils import query_translation, rt_logical, rt_semantic, qc_vector, qt_multi_query, qt_rag_fusion, qt_step_back, qt_hyde
+from utils import query_translation, rt_logical, rt_semantic, qc_vector, qt_multi_query, qt_rag_fusion, qt_step_back, qt_hyde, ret_crag
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
@@ -103,6 +103,28 @@ async def chat(chat_request: ChatRequest, request: Request):
                 rag_chain = await rt_logical.run(chat_request, request, {"subject_one": sub_one_raptor_chain, "subject_two": sub_two_raptor_chain})
             else:
                 rag_chain = await rt_logical.run(chat_request, request, {"subject_one": sub_one_chain, "subject_two": sub_two_chain})
+
+            if path[4] == "crag":
+                workflow = await ret_crag.build_crag_workflow(chat_request, request, rag_chain)
+
+                workflow_response = workflow.invoke({"question": chat_request.message})
+
+                # Extract the generation and sources from the workflow response
+                answer = workflow_response.get("generation", "")
+                sources = workflow_response.get("sources", [])
+
+                request.app.state.chat_history.append(HumanMessage(content=chat_request.message))
+                request.app.state.chat_history.append(AIMessage(content=answer))
+                
+                # Keep only last 10 messages to prevent context overflow
+                if len(request.app.state.chat_history) > 20:
+                    request.app.state.chat_history = request.app.state.chat_history[-20:]
+
+                return ChatResponse(
+                    answer=answer,
+                    sources=sources
+                )
+                
         else:
             query_translation_options = await handle_query_translation(path[0], chat_request, request, request.app.state.vector_stores["subject_one"])
             rag_chain = build_chain(query_translation_options, query_construction_options)
