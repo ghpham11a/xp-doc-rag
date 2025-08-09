@@ -119,7 +119,6 @@ async def build_crag_workflow(chat_request: ChatRequest, request: Request, rag_c
         print(f"---DOCUMENTS FOUND {len(documents)}---")
         
         for doc in documents:
-            print(doc.page_content)
             score = retrieval_grader.invoke({
                 "question": question, 
                 "document": doc.page_content

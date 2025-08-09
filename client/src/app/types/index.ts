@@ -32,4 +32,5 @@ export type QueryTranslationType = 'none' | 'multi-query' | 'rag-fusion' | 'deco
 export type RoutingType = 'none' | 'logical' | 'semantic';
 export type QueryConstructionType = 'none' | 'vector'
 export type RetrievalType = 'none' | 'CRAG'
+export type GenerationType = 'none' | 'adaptive'
 export type IndexTechnique = 'default' | 'multi-representation' | 'raptor' | 'colbert';

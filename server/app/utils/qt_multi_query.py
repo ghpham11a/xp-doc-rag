@@ -12,7 +12,7 @@ from langchain_core.vectorstores.base import VectorStore
 from models import ChatRequest, ChatResponse, QueryTranslationResponse
 
 # Multi Query: Different Perspectives
-async def run(chat_request: ChatRequest, request: Request, vector_store: VectorStore) -> QueryTranslationResponse:
+def run(chat_request: ChatRequest, request: Request, vector_store: VectorStore) -> QueryTranslationResponse:
 
     retriever = vector_store.as_retriever()
 
