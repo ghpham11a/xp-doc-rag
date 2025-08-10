@@ -255,16 +255,9 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
 
         answer = (prompt | llm | StrOutputParser()).invoke(prompt_inputs)
 
-        return {"messages": [llm.invoke(AIMessage(content=answer))]}
+        return {"messages": [AIMessage(content=answer)]}
     
     def rag_fusion_generate_node(state: State):
-        return {}
-
-    def generate(state: State):
-        # Extract last user message from state
-        # last_message = state["messages"][-1].content
-        # response = chain.invoke({"question": last_message})
-        # Just pass through final state - execution happens in streaming
         return {}
     
     def post_process_generate_node(state: State):
@@ -326,25 +319,32 @@ async def chat_stream(chat_request: ChatRequest, request: Request):
 
     async def event_generator():
         try:
-            async for chunk in workflow.astream({"messages": [{"role": "user", "content": chat_request.message}]}, stream_mode="messages"):
-                # Handle different chunk formats
-                if isinstance(chunk, tuple) and len(chunk) == 2:
-                    # This is the format: (AIMessageChunk, metadata_dict)
-                    msg_chunk, metadata = chunk
-                    content = getattr(msg_chunk, "content", "")
-                elif isinstance(chunk, dict) and "chatbot" in chunk:
-                    # Original format
-                    msg = chunk["chatbot"]["messages"][-1]
-                    content = getattr(msg, "content", "")
-                else:
-                    # Direct message chunk
-                    content = getattr(chunk, "content", "") if hasattr(chunk, "content") else ""
-
-                if content:
-                    yield f"data: {content}"
-        except Exception as e:
-            print(str(e))
+            initial_message_count = 1  # We start with 1 user message
+            last_sent_content = None
+            
+            # Use values mode to get complete state updates
+            async for event in workflow.astream({"messages": [{"role": "user", "content": chat_request.message}]}, stream_mode="values"):
+                # Check if this event contains messages
+                if isinstance(event, dict) and "messages" in event:
+                    messages = event["messages"]
+                    
+                    # Check if we have more messages than we started with (i.e., AI responded)
+                    if len(messages) > initial_message_count:
+                        # Get the last message (should be AI response)
+                        last_message = messages[-1]
+                        
+                        # Verify it's an AIMessage
+                        if isinstance(last_message, AIMessage):
+                            content = last_message.content
+                            # Only send if we haven't sent this content already
+                            if content and content != last_sent_content:
+                                last_sent_content = content
+                                yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+                                
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as e:
+            print(f"Streaming error: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

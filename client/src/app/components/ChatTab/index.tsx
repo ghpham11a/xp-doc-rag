@@ -66,11 +66,13 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
           let accumulatedContent = "";
           let sources: string[] = [];
 
+          let messageAdded = false;
+          
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              // Stream ended, save the accumulated message
-              if (accumulatedContent) {
+              // Stream ended, save the accumulated message only if we haven't already
+              if (accumulatedContent && !messageAdded) {
                 setMessages(prev => [...prev, {
                   role: 'assistant',
                   content: accumulatedContent,
@@ -119,11 +121,14 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
                       sources = data.sources;
                     } else if (data.type === 'done') {
                       // Streaming complete
-                      setMessages(prev => [...prev, {
-                        role: 'assistant',
-                        content: accumulatedContent,
-                        sources: sources.length > 0 ? sources : undefined
-                      }]);
+                      if (accumulatedContent && !messageAdded) {
+                        setMessages(prev => [...prev, {
+                          role: 'assistant',
+                          content: accumulatedContent,
+                          sources: sources.length > 0 ? sources : undefined
+                        }]);
+                        messageAdded = true;
+                      }
                       setStreamingMessage("");
                       setIsStreaming(false);
                     } else if (data.type === 'error') {
