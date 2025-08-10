@@ -20,6 +20,8 @@ from langgraph.graph.message import add_messages
 from langchain.schema import Document
 from langchain_core.vectorstores.base import VectorStore
 from pydantic import BaseModel, Field
+from langchain.load import dumps, loads
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -57,6 +59,19 @@ class RouteQuery(BaseModel):
         description="Given a user question choose which datasource would be most relevant for answering their question",
     )
 
+def build_context(docs: List[Document], max_chars: int = 8000):
+    # Simple concatenation with source tags
+    parts = []
+    total = 0
+    for i, d in enumerate(docs, 1):
+        snippet = d.page_content.strip()
+        tag = d.metadata.get("source") or f"doc_{i}"
+        block = f"[Source: {tag}]\n{snippet}"
+        if total + len(block) > max_chars:
+            break
+        parts.append(block)
+        total += len(block)
+    return "\n\n".join(parts)
 
 async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder = StateGraph(State)
@@ -74,7 +89,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
 
     def routing_conditional_edge(state):
         """Decide whether to generate an answer or do web search"""
-        print(f"---ASSESS ROUTE [{state['selectedRoutingType']}]---")
+        print(f"---ASSESS ROUTING EDGE [{state['selectedRoutingType']}]---")
 
         if state["selectedRoutingType"] == "logical":
             return "logical_routing_node"
@@ -108,12 +123,13 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
             route_result = router.invoke({"question": inputs})
 
             if "subject_one" in route_result.datasource.lower():
-                print("---INSPECTING SUBJECT ONE---")
+                print("---USING SUBJECT ONE---")
                 return "subject_one"
             elif "subject_two" in route_result.datasource.lower():
-                print("---INSPECTING SUBJECT TWO---")
+                print("---USING SUBJECT TWO---")
                 return "subject_two"
             else:
+                print("---USING SUBJECT ONE AS DEFAULT---")
                 return "subject_one"
 
         return {"routed_vector": route_and_invoke(chat_request.message)}
@@ -140,26 +156,134 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
                 return {"vector_store": request.app.state.vector_stores["subject_one"]}
             elif state["routed_vector"] == "subject_two":
                 return {"vector_store": request.app.state.vector_stores["subject_two"]}
+            
+    def retrieve_conditional_edge(state):
+        print(f"---ASSESS RETRIEVE EDGE [{state['selectedQueryTranslation']}]---")
+        """Decide whether to generate an answer or do web search"""
 
-    def retrieve(state: State):
-        # Just pass through the state - don't execute chains yet
-        return {
-            "vector_store": state.get("vector_store"),
-            "query_translation_type": state["selectedQueryTranslation"]
+        if state["selectedQueryTranslation"] == "multi-query":
+            return "multi_query_retrieve_node"
+
+        if state["selectedQueryTranslation"] == "rag-fusion":
+            return "rag_fusion_retrieve_node"
+
+        return ""
+
+    
+    def multi_query_retrieve_node(state: State):
+
+        retriever = state["vector_store"].as_retriever()
+
+        template = """You are an AI language model assistant. Your task is to generate five 
+        different versions of the given user question to retrieve relevant documents from a vector 
+        database. By generating multiple perspectives on the user question, your goal is to help
+        the user overcome some of the limitations of the distance-based similarity search. 
+        Provide these alternative questions separated by newlines. Original question: {question}"""
+        prompt_perspectives = ChatPromptTemplate.from_template(template)
+
+        generate_queries = (
+            prompt_perspectives 
+            | ChatOpenAI(temperature=0) 
+            | StrOutputParser() 
+            | (lambda x: x.split("\n"))
+        )
+
+        def get_unique_union(documents: list[list]):
+            """ Unique union of retrieved docs """
+            # Flatten list of lists, and convert each Document to string
+            flattened_docs = [dumps(doc) for sublist in documents for doc in sublist]
+            # Get unique documents
+            unique_docs = list(set(flattened_docs))
+            # Return
+            return [loads(doc) for doc in unique_docs]
+
+        # Retrieve
+        retrieval_chain = generate_queries | retriever.map() | get_unique_union
+
+        docs = retrieval_chain.invoke({"question": chat_request.message})
+
+        print(f"RETRIEVED {len(docs)} documents using multi-query query translation")
+
+        return {"documents": docs}
+    
+    def rag_fusion_retrieve_node(state: State):
+        print("INSIDE rag_fusion_retrieve_node")
+        
+        return {}
+    
+    def post_process_retrieve_node(state: State):
+        return {}
+    
+    def generate_conditional_edge(state: State):
+        print(f"---ASSESS GENERATE EDGE [{state['selectedQueryTranslation']}]---")
+        """Decide whether to generate an answer or do web search"""
+
+        if state["selectedQueryTranslation"] == "multi-query":
+            return "multi_query_generate_node"
+
+        if state["selectedQueryTranslation"] == "rag-fusion":
+            return "rag_fusion_generate_node"
+
+        return ""
+    
+    def multi_query_generate_node(state: State):
+
+        print("---USING MULTI QUERY GENERATOR---")
+
+        system_prompt = """Answer the following question based on this context:
+
+        {context}
+
+        Question: {question}
+        """
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{question}")
+        ])
+
+        context_text = build_context(state["documents"])
+
+        prompt_inputs = {
+            "context": context_text,
+            "question": chat_request.message,
+            "chat_history": state["messages"]
         }
 
-    def generate(state: State):
-        # Just pass through final state - execution happens in streaming
+        llm = ChatOpenAI(temperature=0)
+
+        answer = (prompt | llm | StrOutputParser()).invoke(prompt_inputs)
+
+        return {"messages": [llm.invoke(AIMessage(content=answer))]}
+    
+    def rag_fusion_generate_node(state: State):
         return {}
 
+    def generate(state: State):
+        # Extract last user message from state
+        # last_message = state["messages"][-1].content
+        # response = chain.invoke({"question": last_message})
+        # Just pass through final state - execution happens in streaming
+        return {}
+    
+    def post_process_generate_node(state: State):
+        return {}
+    
+    # add nodes
     workflow_builder.add_node(init_node)
     workflow_builder.add_node(logical_routing_node)
     workflow_builder.add_node(semantic_routing_node)
     workflow_builder.add_node(query_construction_node)
     workflow_builder.add_node(indexing_node)
-    workflow_builder.add_node(retrieve)
-    workflow_builder.add_node(generate)
+    workflow_builder.add_node(multi_query_retrieve_node)
+    workflow_builder.add_node(rag_fusion_retrieve_node)
+    workflow_builder.add_node(post_process_retrieve_node)
+    workflow_builder.add_node(multi_query_generate_node)
+    workflow_builder.add_node(rag_fusion_generate_node)
+    workflow_builder.add_node(post_process_generate_node)
 
+    # add edges
     workflow_builder.add_edge(START, "init_node")
     workflow_builder.add_conditional_edges(
         "init_node",
@@ -172,9 +296,26 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_edge("logical_routing_node", "query_construction_node")
     workflow_builder.add_edge("semantic_routing_node", "query_construction_node")
     workflow_builder.add_edge("query_construction_node", "indexing_node")
-    workflow_builder.add_edge("indexing_node", "retrieve")
-    workflow_builder.add_edge("retrieve", "generate")
-    workflow_builder.add_edge("generate", END)
+    workflow_builder.add_conditional_edges(
+        "indexing_node",
+        retrieve_conditional_edge,
+        {
+            "multi_query_retrieve_node": "multi_query_retrieve_node",
+            "rag_fusion_retrieve_node": "rag_fusion_retrieve_node",
+        },
+    )
+    workflow_builder.add_edge("multi_query_retrieve_node", "post_process_retrieve_node")
+    workflow_builder.add_edge("rag_fusion_retrieve_node", "post_process_retrieve_node")
+    workflow_builder.add_conditional_edges(
+        "post_process_retrieve_node",
+        generate_conditional_edge,
+        {
+            "multi_query_generate_node": "multi_query_generate_node",
+        },
+    )
+    workflow_builder.add_edge("multi_query_generate_node", "post_process_generate_node")
+    workflow_builder.add_edge("rag_fusion_generate_node", "post_process_generate_node")
+    workflow_builder.add_edge("post_process_generate_node", END)
 
     return workflow_builder.compile()
 
@@ -183,9 +324,30 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
 async def chat_stream(chat_request: ChatRequest, request: Request):
     workflow = await build_workflow(chat_request, request)
 
-    response = workflow.invoke({ "question": chat_request.message })
+    async def event_generator():
+        try:
+            async for chunk in workflow.astream({"messages": [{"role": "user", "content": chat_request.message}]}, stream_mode="messages"):
+                # Handle different chunk formats
+                if isinstance(chunk, tuple) and len(chunk) == 2:
+                    # This is the format: (AIMessageChunk, metadata_dict)
+                    msg_chunk, metadata = chunk
+                    content = getattr(msg_chunk, "content", "")
+                elif isinstance(chunk, dict) and "chatbot" in chunk:
+                    # Original format
+                    msg = chunk["chatbot"]["messages"][-1]
+                    content = getattr(msg, "content", "")
+                else:
+                    # Direct message chunk
+                    content = getattr(chunk, "content", "") if hasattr(chunk, "content") else ""
 
-    print("response", response)
+                if content:
+                    yield f"data: {content}"
+        except Exception as e:
+            print(str(e))
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
     # async def stream_graph_updates(user_input: str):
     #     # Collect the final state from the workflow
