@@ -1,18 +1,12 @@
-from operator import itemgetter
-from fastapi import Request
-
-from langchain_core.messages import HumanMessage, AIMessage
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain.load import dumps, loads
-from langchain_core.vectorstores.base import VectorStore
 
-
-from models import ChatRequest, ChatResponse, QueryTranslationResponse
+from graph.state import State
 
 # Multi Query: Different Perspectives
-def node(state):
+def multi_query_retrieve_node(state: State):
 
     retriever = state["vector_store"].as_retriever()
 
@@ -42,7 +36,7 @@ def node(state):
     # Retrieve
     retrieval_chain = generate_queries | retriever.map() | get_unique_union
 
-    docs = retrieval_chain.invoke({"question": state["message"]})
+    docs = retrieval_chain.invoke({"question": state["question"]})
 
     print(f"RETRIEVED {len(docs)} documents using multi-query query translation")
 
