@@ -24,7 +24,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
 
   // Reset selections when they become disabled
   useEffect(() => {
-    if (selectedQueryTranslation === "decomposition") {
+    if (selectedQueryTranslation === "recursive-decomposition") {
       // Reset routing and query construction when decomposition is selected
       // setSelectedRoutingType("none");
       // setSelectedQueryConstruction("none");
@@ -190,7 +190,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
 
 
   // Conditional disabling logic
-  const isDecompositionSelected = selectedQueryTranslation === "decomposition";
+  const isDecompositionSelected = false;
   const isLogicalRoutingSelected = selectedRoutingType === "logical";
 
   const queryTranslationOptions = [
