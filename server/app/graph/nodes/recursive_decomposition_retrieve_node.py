@@ -8,15 +8,15 @@ from langchain.schema import Document
 
 from graph.state import State
 
-def decomposition_retrieve_node(state: State):
+def recursive_decomposition_retrieve_node(state: State):
 
     retriever = state["vector_store"].as_retriever()
 
-    template = """You are a helpful assistant that generates multiple sub-questions related to an input question. \n
+    decomposition_template = """You are a helpful assistant that generates multiple sub-questions related to an input question. \n
     The goal is to break down the input into a set of sub-problems / sub-questions that can be answers in isolation. \n
     Generate multiple search queries related to: {question} \n
     Output (3 queries):"""
-    prompt_decomposition = ChatPromptTemplate.from_template(template)
+    prompt_decomposition = ChatPromptTemplate.from_template(decomposition_template)
 
     # LLM
     llm = ChatOpenAI(temperature=0)
@@ -25,8 +25,7 @@ def decomposition_retrieve_node(state: State):
     generate_queries_decomposition = (prompt_decomposition | llm | StrOutputParser() | (lambda x: x.split("\n")))
 
     # Run
-    question = "What are the main components of an LLM-powered autonomous agent system?"
-    questions = generate_queries_decomposition.invoke({"question":question})
+    questions = generate_queries_decomposition.invoke({"question": state["question"]})
 
     # Prompt
     template = """Here is the question you need to answer:

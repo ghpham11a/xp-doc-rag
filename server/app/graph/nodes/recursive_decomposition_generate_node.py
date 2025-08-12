@@ -7,7 +7,7 @@ from langchain_core.output_parsers import StrOutputParser
 from graph.state import State
 from utils.build_context import build_context
 
-def decomposition_generate_node(state: State):
+def recursive_decomposition_generate_node(state: State):
 
     print("---USING RECURSIVE DECOMPOSITION GENERATOR---")
 

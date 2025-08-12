@@ -198,7 +198,8 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
     { label: "None", value: "none" as QueryTranslationType },
     { label: "Multi-Query", value: "multi-query" as QueryTranslationType },
     { label: "RAG Fusion", value: "rag-fusion" as QueryTranslationType },
-    { label: "Decomposition", value: "decomposition" as QueryTranslationType },
+    { label: "Recursive Decomposition", value: "recursive-decomposition" as QueryTranslationType },
+    { label: "Individual Decomposition", value: "individual-decomposition" as QueryTranslationType },
     { label: "Step Back", value: "step-back" as QueryTranslationType },
     { label: "HyDE", value: "hyde" as QueryTranslationType },
   ];

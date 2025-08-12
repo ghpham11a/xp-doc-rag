@@ -10,7 +10,10 @@ def retrieve_conditional_edge(state: State):
     if state["selectedQueryTranslation"] == "rag-fusion":
         return "rag_fusion_retrieve_node"
     
-    if state["selectedQueryTranslation"] == "decomposition":
-        return "decomposition_retrieve_node"
+    if state["selectedQueryTranslation"] == "recursive-decomposition":
+        return "recursive_decomposition_retrieve_node"
+    
+    if state["selectedQueryTranslation"] == "individual-decomposition":
+        return "individual_decomposition_retrieve_node"
 
     return ""

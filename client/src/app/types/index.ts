@@ -28,7 +28,7 @@ export interface ChatResponse {
 
 export type TabType = "upload" | "chat";
 export type DropZoneId = 'subject_one' | 'subject_two';
-export type QueryTranslationType = 'none' | 'multi-query' | 'rag-fusion' | 'decomposition' | 'step-back' | 'hyde' | 'logical' | 'semantic' | 'structured';
+export type QueryTranslationType = 'none' | 'multi-query' | 'rag-fusion' | 'recursive-decomposition' | 'step-back' | 'hyde' | 'logical' | 'semantic' | 'structured' | 'individual-decomposition';
 export type RoutingType = 'none' | 'logical' | 'semantic';
 export type QueryConstructionType = 'none' | 'vector'
 export type RetrievalType = 'none' | 'CRAG'
