@@ -75,11 +75,15 @@ kubernetes==33.1.0
 langchain==0.3.13
 langchain-chroma==0.2.4
 langchain-community==0.3.13
-langchain-core==0.3.63
+langchain-core==0.3.74
 langchain-openai==0.2.13
 langchain-text-splitters==0.3.8
 langdetect==1.0.9
-langsmith==0.2.11
+langgraph==0.6.4
+langgraph-checkpoint==2.1.1
+langgraph-prebuilt==0.6.4
+langgraph-sdk==0.2.0
+langsmith==0.4.13
 llama-cloud==0.1.35
 llama-cloud-services==0.6.54
 llama-index==0.13.0
@@ -123,6 +127,7 @@ opentelemetry-proto==1.35.0
 opentelemetry-sdk==1.35.0
 opentelemetry-semantic-conventions==0.56b0
 orjson==3.11.1
+ormsgpack==1.10.0
 overrides==7.7.0
 packaging==24.2
 pandas==2.2.3
@@ -208,3 +213,4 @@ wrapt==1.17.2
 xxhash==3.5.0
 yarl==1.20.1
 zipp==3.23.0
+zstandard==0.23.0

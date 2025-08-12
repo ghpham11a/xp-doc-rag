@@ -9,5 +9,8 @@ def generate_conditional_edge(state: State):
 
     if state["selectedQueryTranslation"] == "rag-fusion":
         return "rag_fusion_generate_node"
+    
+    if state["selectedQueryTranslation"] == "decomposition":
+        return "decomposition_generate_node"
 
     return ""

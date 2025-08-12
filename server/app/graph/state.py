@@ -17,6 +17,7 @@ class State(TypedDict):
     generation: str = ""
     web_search: str = "No"
     documents: List[Document] = []
+    q_and_a_pairs: str
     web_search_used: bool = False
     document_grades: List[Dict[str, Any]] = []
     messages: Annotated[list, add_messages]

@@ -26,15 +26,15 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   useEffect(() => {
     if (selectedQueryTranslation === "decomposition") {
       // Reset routing and query construction when decomposition is selected
-      setSelectedRoutingType("none");
-      setSelectedQueryConstruction("none");
+      // setSelectedRoutingType("none");
+      // setSelectedQueryConstruction("none");
     }
   }, [selectedQueryTranslation]);
 
   useEffect(() => {
     if (selectedRoutingType !== "logical" && selectedIndexing === "multi-representation") {
       // Reset indexing to default if multi-representation becomes disabled
-      setSelectedIndexing("default");
+      // setSelectedIndexing("default");
     }
   }, [selectedRoutingType, selectedIndexing]);
 
@@ -203,15 +203,17 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
     { label: "HyDE", value: "hyde" as QueryTranslationType },
   ];
 
+  // { label: "Logical", value: "logical" as RoutingType, disabled: isDecompositionSelected },
+
   const routingOptions = [
-    { label: "None", value: "none" as RoutingType, disabled: isDecompositionSelected },
-    { label: "Logical", value: "logical" as RoutingType, disabled: isDecompositionSelected },
+    { label: "None", value: "none" as RoutingType, disabled: false },
+    { label: "Logical", value: "logical" as RoutingType, disabled: false },
     { label: "Semantic", value: "semantic" as RoutingType, disabled: true },
   ];
 
   const queryConstructionOptions = [
-    { label: "None", value: "none" as QueryConstructionType, disabled: isDecompositionSelected },
-    { label: "Vector", value: "vector" as QueryConstructionType, disabled: isDecompositionSelected },
+    { label: "None", value: "none" as QueryConstructionType, disabled: false },
+    { label: "Vector", value: "vector" as QueryConstructionType, disabled: false },
     { label: "SQL", value: "sql" as QueryConstructionType, disabled: true }
   ]
 
