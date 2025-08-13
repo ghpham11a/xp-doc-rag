@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Message, ChatResponse, QueryTranslationType, RoutingType, QueryConstructionType, IndexTechnique, RetrievalType, GenerationType } from "../../types";
 import { API_ENDPOINTS } from "../../constants/api";
-import RadioGroup from "../common/RadioGroup";
+import QueryTechniqueModal from "../common/QueryTechniqueModal";
 
 interface ChatTabProps {
   messages: Message[];
@@ -15,6 +15,7 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   const [loading, setLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQueryTranslation, setSelectedQueryTranslation] = useState<QueryTranslationType>("none");
   const [selectedRoutingType, setSelectedRoutingType] = useState<RoutingType>("logical");
   const [selectedQueryConstruction, setSelectedQueryConstruction] = useState<QueryConstructionType>("none");
@@ -189,85 +190,50 @@ export default function ChatTab({ messages, setMessages }: ChatTabProps) {
   };
 
 
-  // Conditional disabling logic
-  const isDecompositionSelected = false;
-  const isLogicalRoutingSelected = selectedRoutingType === "logical";
-
-  const queryTranslationOptions = [
-    // Query Translation
-    { label: "None", value: "none" as QueryTranslationType },
-    { label: "Multi-Query", value: "multi-query" as QueryTranslationType },
-    { label: "RAG Fusion", value: "rag-fusion" as QueryTranslationType },
-    { label: "Recursive Decomposition", value: "recursive-decomposition" as QueryTranslationType },
-    { label: "Individual Decomposition", value: "individual-decomposition" as QueryTranslationType },
-    { label: "Step Back", value: "step-back" as QueryTranslationType },
-    { label: "HyDE", value: "hyde" as QueryTranslationType },
-  ];
-
-  // { label: "Logical", value: "logical" as RoutingType, disabled: isDecompositionSelected },
-
-  const routingOptions = [
-    { label: "None", value: "none" as RoutingType, disabled: false },
-    { label: "Logical", value: "logical" as RoutingType, disabled: false },
-    { label: "Semantic", value: "semantic" as RoutingType, disabled: true },
-  ];
-
-  const queryConstructionOptions = [
-    { label: "None", value: "none" as QueryConstructionType, disabled: false },
-    { label: "Vector", value: "vector" as QueryConstructionType, disabled: false },
-    { label: "SQL", value: "sql" as QueryConstructionType, disabled: true }
-  ]
-
-  const indexingOptions = [
-    { label: "Default", value: "default" as IndexTechnique },
-    { label: "Multi-Representation", value: "multi-representation" as IndexTechnique },
-    { label: "RAPTOR", value: "raptor" as IndexTechnique }, // Always disabled for now
-    { label: "ColBERT", value: "colbert" as IndexTechnique } // Always disabled for now
-  ];
-
-  const retrievalOptions = [
-    { label: "None", value: "none" as RetrievalType, disabled: false },
-    { label: "CRAG", value: "crag" as RetrievalType, disabled: false },
-  ]
+  const getSettingsSummary = () => {
+    const settings = [];
+    if (selectedQueryTranslation !== "none") settings.push(selectedQueryTranslation);
+    if (selectedRoutingType !== "none") settings.push(selectedRoutingType);
+    if (selectedQueryConstruction !== "none") settings.push(selectedQueryConstruction);
+    if (selectedIndexing !== "default") settings.push(selectedIndexing);
+    if (selectedRetrieval !== "none") settings.push(selectedRetrieval);
+    
+    if (settings.length === 0) return "Default settings";
+    return settings.join(", ");
+  }
 
   return (
     <div className="flex flex-col h-[600px]">
-      <div className="flex gap-4 mb-4">
-        <RadioGroup
-          title="Query Translation"
-          name="query-translation"
-          options={queryTranslationOptions}
-          selectedValue={selectedQueryTranslation}
-          onChange={setSelectedQueryTranslation}
-        />
-        <RadioGroup
-          title="Routing"
-          name="routing"
-          options={routingOptions}
-          selectedValue={selectedRoutingType}
-          onChange={setSelectedRoutingType}
-        />
-        <RadioGroup
-          title="Query Construction"
-          name="query-construction"
-          options={queryConstructionOptions}
-          selectedValue={selectedQueryConstruction}
-          onChange={setSelectedQueryConstruction}
-        />
-        <RadioGroup
-          title="Indexing"
-          name="indexing"
-          options={indexingOptions}
-          selectedValue={selectedIndexing}
-          onChange={setSelectedIndexing}
-        />
-        <RadioGroup
-          title="Retrieval"
-          name="retrieval"
-          options={retrievalOptions}
-          selectedValue={selectedRetrieval}
-          onChange={setSelectedRetrieval}
-        />
+      <QueryTechniqueModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedQueryTranslation={selectedQueryTranslation}
+        setSelectedQueryTranslation={setSelectedQueryTranslation}
+        selectedRoutingType={selectedRoutingType}
+        setSelectedRoutingType={setSelectedRoutingType}
+        selectedQueryConstruction={selectedQueryConstruction}
+        setSelectedQueryConstruction={setSelectedQueryConstruction}
+        selectedIndexing={selectedIndexing}
+        setSelectedIndexing={setSelectedIndexing}
+        selectedRetrieval={selectedRetrieval}
+        setSelectedRetrieval={setSelectedRetrieval}
+        selectedGeneration={selectedGeneration}
+        setSelectedGeneration={setSelectedGeneration}
+      />
+      
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          <span>Query Settings</span>
+        </button>
+        <div className="text-sm text-gray-600">
+          Active: {getSettingsSummary()}
+        </div>
       </div>
 
       <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-4 overflow-y-auto">

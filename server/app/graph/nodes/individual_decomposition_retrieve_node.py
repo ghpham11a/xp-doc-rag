@@ -52,14 +52,14 @@ def individual_decomposition_retrieve_node(state: State):
         for sub_question in sub_questions:
             
             # Retrieve documents for each sub-question
-            retrieved_docs = retriever.get_relevant_documents(sub_question)
+            retrieved_docs = retriever.invoke(sub_question)
             
             # Use retrieved documents and sub-question in RAG chain
             answer = (prompt_rag | llm | StrOutputParser()).invoke({"context": retrieved_docs, 
                                                                     "question": sub_question})
             rag_results.append(answer)
         
-        return rag_results, sub_question
+        return rag_results, sub_questions
     
     # Wrap the retrieval and RAG process in a RunnableLambda for integration into a chain
     answers, questions = retrieve_and_rag(state["question"], prompt_rag, generate_queries_decomposition)

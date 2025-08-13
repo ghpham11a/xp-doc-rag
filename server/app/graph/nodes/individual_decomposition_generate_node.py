@@ -9,17 +9,21 @@ from utils.build_context import build_context
 
 def individual_decomposition_generate_node(state: State):
 
-    print("---USING RECURSIVE DECOMPOSITION GENERATOR---")
+    print("---USING INDIVIDUAL DECOMPOSITION GENERATOR---")
 
     # Prompt
-    template = """Here is a set of Q+A pairs:
+    system_prompt = """Here is a set of Q+A pairs:
 
     {context}
 
     Use these to synthesize an answer to the question: {question}
     """
 
-    prompt = ChatPromptTemplate.from_template(template)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{question}")
+    ])
 
     llm = ChatOpenAI(temperature=0)
 
@@ -29,6 +33,12 @@ def individual_decomposition_generate_node(state: State):
         | StrOutputParser()
     )
 
-    answer = final_rag_chain.invoke({"context":state[""],"question":state["question"]})
+    prompt_inputs = {
+        "context": state["q_a_pairs"],
+        "question": state["question"],
+        "chat_history": state["messages"],
+    }
+
+    answer = final_rag_chain.invoke(prompt_inputs)
 
     return {"messages": [AIMessage(content=answer)]}
