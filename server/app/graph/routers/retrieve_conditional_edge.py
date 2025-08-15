@@ -18,5 +18,8 @@ def retrieve_conditional_edge(state: State):
     
     if state["selectedQueryTranslation"] == "step-back":
         return "step_back_retrieve_node"
+    
+    if state["selectedQueryTranslation"] == "hyde":
+        return "hyde_retrieve_node"
 
     return ""

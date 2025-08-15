@@ -11,12 +11,14 @@ from graph.nodes.rag_fusion_retrieve_node import rag_fusion_retrieve_node
 from graph.nodes.recursive_decomposition_retrieve_node import recursive_decomposition_retrieve_node
 from graph.nodes.individual_decomposition_retrieve_node import individual_decomposition_retrieve_node
 from graph.nodes.step_back_retrieve_node import step_back_retrieve_node
+from graph.nodes.hyde_retrieve_node import hyde_retrieve_node
 from graph.nodes.post_process_retrieve_node import post_process_retrieve_node
 from graph.nodes.multi_query_generate_node import multi_query_generate_node
 from graph.nodes.rag_fusion_generate_node import rag_fusion_generate_node
 from graph.nodes.recursive_decomposition_generate_node import recursive_decomposition_generate_node
 from graph.nodes.individual_decomposition_generate_node import individual_decomposition_generate_node
 from graph.nodes.step_back_generate_node import step_back_generate_node
+from graph.nodes.hyde_generate_node import hyde_generate_node
 from graph.nodes.post_process_generate_node import post_process_generate_node
 from graph.routers.routing_conditional_edge import routing_conditional_edge
 from graph.routers.retrieve_conditional_edge import retrieve_conditional_edge
@@ -66,12 +68,14 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_node(recursive_decomposition_retrieve_node)
     workflow_builder.add_node(individual_decomposition_retrieve_node)
     workflow_builder.add_node(step_back_retrieve_node)
+    workflow_builder.add_node(hyde_retrieve_node)
     workflow_builder.add_node(post_process_retrieve_node)
     workflow_builder.add_node(multi_query_generate_node)
     workflow_builder.add_node(rag_fusion_generate_node)
     workflow_builder.add_node(recursive_decomposition_generate_node)
     workflow_builder.add_node(individual_decomposition_generate_node)
     workflow_builder.add_node(step_back_generate_node)
+    workflow_builder.add_node(hyde_generate_node)
     workflow_builder.add_node(post_process_generate_node)
 
     # add edges
@@ -96,6 +100,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
             "recursive_decomposition_retrieve_node": "recursive_decomposition_retrieve_node",
             "individual_decomposition_retrieve_node": "individual_decomposition_retrieve_node",
             "step_back_retrieve_node": "step_back_retrieve_node",
+            "hyde_retrieve_node": "hyde_retrieve_node"
         },
     )
     workflow_builder.add_edge("multi_query_retrieve_node", "post_process_retrieve_node")
@@ -103,6 +108,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_edge("recursive_decomposition_retrieve_node", "post_process_retrieve_node")
     workflow_builder.add_edge("individual_decomposition_retrieve_node", "post_process_retrieve_node")
     workflow_builder.add_edge("step_back_retrieve_node", "post_process_retrieve_node")
+    workflow_builder.add_edge("hyde_retrieve_node", "post_process_retrieve_node")
     workflow_builder.add_conditional_edges(
         "post_process_retrieve_node",
         generate_conditional_edge,
@@ -111,7 +117,8 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
             "rag_fusion_generate_node": "rag_fusion_generate_node",
             "recursive_decomposition_generate_node": "recursive_decomposition_generate_node",
             "individual_decomposition_generate_node": "individual_decomposition_generate_node",
-            "step_back_generate_node": "step_back_generate_node"
+            "step_back_generate_node": "step_back_generate_node",
+            "hyde_generate_node": "hyde_generate_node"
         },
     )
     workflow_builder.add_edge("multi_query_generate_node", "post_process_generate_node")
@@ -119,6 +126,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_edge("recursive_decomposition_generate_node", "post_process_generate_node")
     workflow_builder.add_edge("individual_decomposition_generate_node", "post_process_generate_node")
     workflow_builder.add_edge("step_back_generate_node", "post_process_generate_node")
+    workflow_builder.add_edge("hyde_generate_node", "post_process_generate_node")
     workflow_builder.add_edge("post_process_generate_node", END)
 
     return workflow_builder.compile()
