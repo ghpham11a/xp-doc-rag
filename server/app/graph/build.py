@@ -19,10 +19,13 @@ from graph.nodes.recursive_decomposition_generate_node import recursive_decompos
 from graph.nodes.individual_decomposition_generate_node import individual_decomposition_generate_node
 from graph.nodes.step_back_generate_node import step_back_generate_node
 from graph.nodes.hyde_generate_node import hyde_generate_node
+from graph.nodes.grade_node import grade_node
 from graph.nodes.post_process_generate_node import post_process_generate_node
 from graph.routers.routing_conditional_edge import routing_conditional_edge
 from graph.routers.retrieve_conditional_edge import retrieve_conditional_edge
 from graph.routers.generate_conditional_edge import generate_conditional_edge
+from graph.routers.grade_conditional_edge import grade_conditional_edge
+from graph.nodes.post_grade_node import post_grade_node
 
 
 async def build_workflow(chat_request: ChatRequest, request: Request):
@@ -70,6 +73,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_node(step_back_retrieve_node)
     workflow_builder.add_node(hyde_retrieve_node)
     workflow_builder.add_node(post_process_retrieve_node)
+    workflow_builder.add_node(grade_node)
     workflow_builder.add_node(multi_query_generate_node)
     workflow_builder.add_node(rag_fusion_generate_node)
     workflow_builder.add_node(recursive_decomposition_generate_node)
@@ -77,6 +81,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_node(step_back_generate_node)
     workflow_builder.add_node(hyde_generate_node)
     workflow_builder.add_node(post_process_generate_node)
+    workflow_builder.add_node(post_grade_node)
 
     # add edges
     workflow_builder.add_edge(START, "init_node")
@@ -118,7 +123,20 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
             "recursive_decomposition_generate_node": "recursive_decomposition_generate_node",
             "individual_decomposition_generate_node": "individual_decomposition_generate_node",
             "step_back_generate_node": "step_back_generate_node",
-            "hyde_generate_node": "hyde_generate_node"
+            "hyde_generate_node": "hyde_generate_node",
+            "grade_node": "grade_node"
+        },
+    )
+    workflow_builder.add_conditional_edges(
+        "grade_node",
+        grade_conditional_edge,
+        {
+            "multi_query_generate_node": "multi_query_generate_node",
+            "rag_fusion_generate_node": "rag_fusion_generate_node",
+            "recursive_decomposition_generate_node": "recursive_decomposition_generate_node",
+            "individual_decomposition_generate_node": "individual_decomposition_generate_node",
+            "step_back_generate_node": "step_back_generate_node",
+            "hyde_generate_node": "hyde_generate_node",
         },
     )
     workflow_builder.add_edge("multi_query_generate_node", "post_process_generate_node")
@@ -127,6 +145,7 @@ async def build_workflow(chat_request: ChatRequest, request: Request):
     workflow_builder.add_edge("individual_decomposition_generate_node", "post_process_generate_node")
     workflow_builder.add_edge("step_back_generate_node", "post_process_generate_node")
     workflow_builder.add_edge("hyde_generate_node", "post_process_generate_node")
+    workflow_builder.add_edge("grade_node", "post_process_generate_node")
     workflow_builder.add_edge("post_process_generate_node", END)
 
     return workflow_builder.compile()

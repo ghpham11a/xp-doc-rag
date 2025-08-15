@@ -1,12 +1,8 @@
 from graph.state import State
 
-def generate_conditional_edge(state: State):
-    print(f"---ASSESS GENERATE EDGE [{state['selectedQueryTranslation']}][{state['selectedRetrieval']}]---")
+def grade_conditional_edge(state: State):
+    print(f"---ASSESS POST GRADE EDGE [{state['selectedQueryTranslation']}]---")
     """Decide whether to generate an answer or do web search"""
-
-    if state["selectedRetrieval"] == "crag":
-        print("USING CRAG")
-        return "grade_node"
 
     if state["selectedQueryTranslation"] == "multi-query":
         return "multi_query_generate_node"
