@@ -15,5 +15,8 @@ def generate_conditional_edge(state: State):
     
     if state["selectedQueryTranslation"] == "individual-decomposition":
         return "individual_decomposition_generate_node"
+    
+    if state["selectedQueryTranslation"] == "step-back":
+        return "step_back_generate_node"
 
     return ""

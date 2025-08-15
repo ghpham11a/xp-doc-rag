@@ -24,6 +24,7 @@ class State(TypedDict):
     vector_store: VectorStore
     query_translation_type: str
     llm: Any
+    step_back_context: List[Document] = []
 
     routed_vector: str
 
